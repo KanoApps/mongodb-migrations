@@ -11,8 +11,9 @@
 
 namespace AntiMattr\MongoDB\Migrations\Collection;
 
-use Doctrine\MongoDB\Collection;
+use MongoDB\Collection;
 use Exception;
+use MongoDB\Driver\Command;
 
 /**
  * @author Matthew Fitzgerald <matthewfitz@gmail.com>
@@ -42,7 +43,7 @@ class Statistics
     ];
 
     /**
-     * @var \Doctrine\MongoDB\Collection
+     * @var \MongoDB\Collection
      */
     private $collection;
 
@@ -57,7 +58,7 @@ class Statistics
     private $after = [];
 
     /**
-     * @param \Doctrine\MongoDB\Collection
+     * @param \MongoDB\Collection
      */
     public function setCollection(Collection $collection)
     {
@@ -65,7 +66,7 @@ class Statistics
     }
 
     /**
-     * @return \Doctrine\MongoDB\Collection
+     * @return \MongoDB\Collection
      */
     public function getCollection()
     {
@@ -111,20 +112,27 @@ class Statistics
     /**
      * @return array
      *
-     * @throws \Exception
+     * @throws \MongoDB\Driver\Exception\Exception
      */
     protected function getCollectionStats()
     {
-        $database = $this->collection->getDatabase();
-        $name = $this->collection->getName();
+        $manager = $this->collection->getManager();
+        $name = $this->collection->getCollectionName();
 
-        if (!$data = $database->command(['collStats' => $name])) {
+        $cursor = $manager->executeCommand(
+            $this->collection->getDatabaseName(),
+            new Command(['collStats' => $name])
+        );
+        $result = $cursor->toArray();
+        if (empty($result)) {
             $message = sprintf(
                 'Statistics not found for collection %s',
                 $name
             );
             throw new Exception($message);
         }
+
+        $data = (array) $result[0];
 
         if (isset($data['errmsg'])) {
             throw new Exception($data['errmsg']);

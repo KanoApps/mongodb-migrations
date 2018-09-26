@@ -14,7 +14,7 @@ namespace AntiMattr\MongoDB\Migrations\Tools\Console\Command;
 use AntiMattr\MongoDB\Migrations\Configuration\Configuration;
 use AntiMattr\MongoDB\Migrations\Configuration\ConfigurationBuilder;
 use AntiMattr\MongoDB\Migrations\OutputWriter;
-use Doctrine\MongoDB\Connection;
+use MongoDB\Client;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
@@ -79,7 +79,7 @@ abstract class AbstractCommand extends Command
         if (!$this->configuration) {
             $conn = $this->getDatabaseConnection($input);
 
-            $outputWriter = new OutputWriter(function($message) use ($output) {
+            $outputWriter = new OutputWriter(function ($message) use ($output) {
                 return $output->writeln($message);
             });
 
@@ -98,9 +98,11 @@ abstract class AbstractCommand extends Command
     /**
      * @param InputInterface $input
      *
-     * @return Connection
+     * @return Client
+     *
+     * @throws \MongoConnectionException
      */
-    protected function getDatabaseConnection(InputInterface $input): Connection
+    protected function getDatabaseConnection(InputInterface $input): Client
     {
         // Default to document manager helper set
         if ($this->getApplication()->getHelperSet()->has('dm')) {
@@ -136,7 +138,9 @@ abstract class AbstractCommand extends Command
     /**
      * @param array $params
      *
-     * @return \Doctrine\MongoDB\Connection
+     * @return Client
+     *
+     * @throws \MongoConnectionException
      */
     protected function createConnection($params)
     {
@@ -166,6 +170,6 @@ abstract class AbstractCommand extends Command
             $options = $params['options'];
         }
 
-        return new Connection($server, $options);
+        return new Client($server, $options);
     }
 }

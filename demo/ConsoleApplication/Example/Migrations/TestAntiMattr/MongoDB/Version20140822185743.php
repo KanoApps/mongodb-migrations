@@ -3,7 +3,7 @@
 namespace Example\Migrations\TestAntiMattr\MongoDB;
 
 use AntiMattr\MongoDB\Migrations\AbstractMigration;
-use Doctrine\MongoDB\Database;
+use MongoDB\Database;
 
 class Version20140822185743 extends AbstractMigration
 {
@@ -21,7 +21,7 @@ class Version20140822185743 extends AbstractMigration
         $this->analyze($testA);
 
         // This will remove all records with actor property starting with character a-m
-        $result = $this->executeScript($db, 'test_script.js');
+        $this->executeScript($db, 'test_script.js');
     }
 
     public function down(Database $db)
@@ -49,7 +49,7 @@ class Version20140822185743 extends AbstractMigration
             $testDocuments[] = $testDocument;
         }
 
-        $testA->batchInsert($testDocuments);
+        $testA->insertMany($testDocuments);
     }
 
     /**

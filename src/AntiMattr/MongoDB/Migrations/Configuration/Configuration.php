@@ -16,8 +16,8 @@ use AntiMattr\MongoDB\Migrations\Exception\DuplicateVersionException;
 use AntiMattr\MongoDB\Migrations\Exception\UnknownVersionException;
 use AntiMattr\MongoDB\Migrations\OutputWriter;
 use AntiMattr\MongoDB\Migrations\Version;
-use Doctrine\MongoDB\Connection;
-use Doctrine\MongoDB\Database;
+use MongoDB\Database;
+use MongoDB\Client;
 
 /**
  * @author Matthew Fitzgerald <matthewfitz@gmail.com>
@@ -25,22 +25,22 @@ use Doctrine\MongoDB\Database;
 class Configuration
 {
     /**
-     * @var \Doctrine\MongoDB\Collection
+     * @var \MongoDB\Collection
      */
     private $collection;
 
     /**
-     * @var \Doctrine\MongoDB\Connection
+     * @var \MongoDB\Client
      */
     private $connection;
 
     /**
-     * @var \Doctrine\MongoDB\Database
+     * @var \MongoDB\Database
      */
     private $database;
 
     /**
-     * @var \Doctrine\MongoDB\Connection
+     * @var \MongoDB\Client
      */
     private $migrationsDatabase;
 
@@ -109,10 +109,10 @@ class Configuration
     private $file;
 
     /**
-     * @param \Doctrine\MongoDB\Connection               $connection
+     * @param Client                                     $connection
      * @param \AntiMattr\MongoDB\Migrations\OutputWriter $outputWriter
      */
-    public function __construct(Connection $connection, OutputWriter $outputWriter = null)
+    public function __construct(Client $connection, OutputWriter $outputWriter = null)
     {
         $this->connection = $connection;
         if (null === $outputWriter) {
@@ -156,7 +156,7 @@ class Configuration
     }
 
     /**
-     * @return \Doctrine\MongoDB\Collection
+     * @return \MongoDB\Collection
      */
     public function getCollection()
     {
@@ -170,7 +170,7 @@ class Configuration
     }
 
     /**
-     * @return \Doctrine\MongoDB\Connection
+     * @return Client
      */
     public function getConnection()
     {
@@ -178,7 +178,7 @@ class Configuration
     }
 
     /**
-     * @return \Doctrine\MongoDB\Database
+     * @return \MongoDB\Database
      */
     public function getDatabase(): ?Database
     {
@@ -203,6 +203,8 @@ class Configuration
 
     /**
      * @param string $databaseName
+     *
+     * @return Configuration
      */
     public function setMigrationsDatabaseName($databaseName)
     {
@@ -347,17 +349,19 @@ class Configuration
             ['v' => $version]
         );
 
-        if (!$cursor->count()) {
+        $results = $cursor->toArray();
+
+        if (!count($results)) {
             throw new UnknownVersionException($version);
         }
 
-        if ($cursor->count() > 1) {
+        if (count($results) > 1) {
             throw new \DomainException(
                 'Unexpected duplicate version records in the database'
             );
         }
 
-        $returnVersion = $cursor->getNext();
+        $returnVersion = $results[0];
 
         // Convert to normalised timestamp
         $ts = new Timestamp($returnVersion['t']);
@@ -408,9 +412,9 @@ class Configuration
     {
         $this->createMigrationCollection();
 
-        $cursor = $this->getCollection()->find();
+        $result = $this->getCollection()->count();
 
-        return $cursor->count();
+        return $result;
     }
 
     /**
@@ -558,18 +562,15 @@ class Configuration
             }
         }
 
-        $cursor = $this->getCollection()
-            ->find(
-                ['v' => ['$in' => $migratedVersions]]
-            )
-            ->sort(['v' => -1])
-            ->limit(1);
+        $version = $this->getCollection()
+            ->findOne(
+                ['v' => ['$in' => $migratedVersions]],
+                ['sort' => ['v' => -1], 'limit' => 1]
+            );
 
-        if (0 === $cursor->count()) {
-            return '0';
+        if (null == $version) {
+            return 0;
         }
-
-        $version = $cursor->getNext();
 
         return $version['v'];
     }
@@ -598,7 +599,7 @@ class Configuration
 
         if (true !== $this->migrationCollectionCreated) {
             $collection = $this->getCollection();
-            $collection->ensureIndex(['v' => -1], ['name' => 'version', 'unique' => true]);
+            $collection->createIndex(['v' => -1], ['name' => 'version', 'unique' => true]);
             $this->migrationCollectionCreated = true;
         }
 
