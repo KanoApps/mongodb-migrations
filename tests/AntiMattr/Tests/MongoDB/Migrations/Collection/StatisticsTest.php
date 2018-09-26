@@ -12,7 +12,7 @@ class StatisticsTest extends TestCase
 
     protected function setUp()
     {
-        $this->collection = $this->createMock('Doctrine\MongoDB\Collection');
+        $this->collection = $this->createMock('MongoDB\Collection');
         $this->statistics = new Statistics();
     }
 
@@ -30,14 +30,23 @@ class StatisticsTest extends TestCase
         $this->statistics = new StatisticsStub();
         $this->statistics->setCollection($this->collection);
 
-        $database = $this->createMock('Doctrine\MongoDB\Database');
+        $cursorStub = $this->createMock(MongoDbCursorStub::class);
+        $cursorStub->expects($this->once())
+            ->method('ToArray')
+            ->will($this->returnValue([['errmsg' => 'foo']]));
+
+        $managerStub = $this->createMock(MongoDbManagerStub::class);
+        $managerStub->expects($this->once())
+            ->method('executeCommand')
+            ->willReturn($cursorStub);
+
+        // hack in a Manager stub
+        $this->collection->expects($this->once())
+            ->method('getManager')
+            ->willReturn($managerStub);
 
         $this->collection->expects($this->once())
-            ->method('getDatabase')
-            ->will($this->returnValue($database));
-
-        $this->collection->expects($this->once())
-            ->method('getName')
+            ->method('getCollectionName')
             ->will($this->returnValue('example'));
 
         $this->statistics->doGetCollectionStats();
@@ -51,23 +60,23 @@ class StatisticsTest extends TestCase
         $this->statistics = new StatisticsStub();
         $this->statistics->setCollection($this->collection);
 
-        $database = $this->createMock('Doctrine\MongoDB\Database');
+        $cursorStub = $this->createMock(MongoDbCursorStub::class);
+
+        $managerStub = $this->createMock(MongoDbManagerStub::class);
+        $managerStub->expects($this->once())
+            ->method('executeCommand')
+            ->willReturn($cursorStub);
 
         $this->collection->expects($this->once())
-            ->method('getDatabase')
-            ->will($this->returnValue($database));
-
-        $this->collection->expects($this->once())
-            ->method('getName')
+            ->method('getCollectionName')
             ->will($this->returnValue('example'));
 
-        $data = [
-            'errmsg' => 'foo',
-        ];
+        // hack in a Manager stub
+        $this->collection->expects($this->once())
+            ->method('getManager')
+            ->will($this->returnValue($managerStub));
 
-        $database->expects($this->once())
-            ->method('command')
-            ->will($this->returnValue($data));
+        $this->expectException('Exception');
 
         $this->statistics->doGetCollectionStats();
     }
@@ -77,27 +86,51 @@ class StatisticsTest extends TestCase
         $this->statistics = new StatisticsStub();
         $this->statistics->setCollection($this->collection);
 
-        $database = $this->createMock('Doctrine\MongoDB\Database');
-
-        $this->collection->expects($this->once())
-            ->method('getDatabase')
-            ->will($this->returnValue($database));
-
-        $this->collection->expects($this->once())
-            ->method('getName')
-            ->will($this->returnValue('example'));
-
         $expectedData = [
             'count' => 100,
         ];
 
-        $database->expects($this->once())
-            ->method('command')
-            ->will($this->returnValue($expectedData));
+        // collstats command returns an array with a single object in it now
+        $stats = new \stdClass();
+        $stats->count = 100;
+
+        $cursorStub = $this->createMock(MongoDbCursorStub::class);
+        $cursorStub->expects($this->once())
+            ->method('ToArray')
+            ->will($this->returnValue([$stats]));
+
+        $managerStub = $this->createMock(MongoDbManagerStub::class);
+        $managerStub->expects($this->once())
+            ->method('executeCommand')
+            ->will($this->returnValue($cursorStub));
+
+        $this->collection->expects($this->once())
+            ->method('getManager')
+            ->willReturn($managerStub);
+
+        $this->collection->expects($this->once())
+            ->method('getCollectionName')
+            ->will($this->returnValue('example'));
 
         $data = $this->statistics->doGetCollectionStats();
 
         $this->assertSame($expectedData, $data);
+    }
+}
+
+class MongoDbManagerStub
+{
+    public function executeCommand()
+    {
+        return new MongoDbCursorStub();
+    }
+}
+
+class MongoDbCursorStub
+{
+    public function ToArray()
+    {
+        return [];
     }
 }
 

@@ -14,8 +14,8 @@ namespace AntiMattr\MongoDB\Migrations;
 use AntiMattr\MongoDB\Migrations\Exception\AbortException;
 use AntiMattr\MongoDB\Migrations\Exception\IrreversibleException;
 use AntiMattr\MongoDB\Migrations\Exception\SkipException;
-use Doctrine\MongoDB\Collection;
-use Doctrine\MongoDB\Database;
+use MongoDB\Collection;
+use MongoDB\Database;
 
 /**
  * @author Matthew Fitzgerald <matthewfitz@gmail.com>
@@ -56,7 +56,7 @@ abstract class AbstractMigration
     abstract public function down(Database $db);
 
     /**
-     * @param \Doctrine\MongoDB\Collection
+     * @param \MongoDB\Collection
      */
     protected function analyze(Collection $collection)
     {
@@ -64,8 +64,12 @@ abstract class AbstractMigration
     }
 
     /**
-     * @param \Doctrine\MongoDB\Database
-     * @param string $filename
+     * @param Database $db
+     * @param string   $filename
+     *
+     * @return array
+     *
+     * @throws \Exception
      */
     protected function executeScript(Database $db, $filename)
     {

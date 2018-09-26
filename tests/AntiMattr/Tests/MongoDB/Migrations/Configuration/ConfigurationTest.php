@@ -3,6 +3,7 @@
 namespace AntiMattr\Tests\MongoDB\Migrations\Configuration;
 
 use AntiMattr\MongoDB\Migrations\Configuration\Configuration;
+use MongoDB\BSON\Timestamp;
 use PHPUnit\Framework\TestCase;
 
 class ConfigurationTest extends TestCase
@@ -12,7 +13,7 @@ class ConfigurationTest extends TestCase
 
     protected function setUp()
     {
-        $this->connection = $this->createMock('Doctrine\MongoDB\Connection');
+        $this->connection = $this->createMock('MongoDB\Client');
         $this->configuration = new Configuration($this->connection);
     }
 
@@ -28,8 +29,8 @@ class ConfigurationTest extends TestCase
         $this->configuration->setMigrationsDatabaseName('test_antimattr_migrations');
         $this->configuration->setMigrationsCollectionName('antimattr_migration_versions_test');
 
-        $expectedCollection = $this->createMock('Doctrine\MongoDB\Collection');
-        $database = $this->createMock('Doctrine\MongoDB\Database');
+        $expectedCollection = $this->createMock('MongoDB\Collection');
+        $database = $this->createMock('MongoDB\Database');
 
         $this->connection->expects($this->once())
             ->method('selectDatabase')
@@ -52,8 +53,8 @@ class ConfigurationTest extends TestCase
         $directory = dirname(__DIR__) . '/Resources/Migrations/';
         $this->configuration->registerMigrationsFromDirectory($directory);
 
-        $collection = $this->createMock('Doctrine\MongoDB\Collection');
-        $database = $this->createMock('Doctrine\MongoDB\Database');
+        $collection = $this->createMock('MongoDB\Collection');
+        $database = $this->createMock('MongoDB\Database');
 
         $this->connection->expects($this->once())
             ->method('selectDatabase')
@@ -65,27 +66,11 @@ class ConfigurationTest extends TestCase
             ->with('antimattr_migration_versions_test')
             ->willReturn($collection);
 
-        $cursor = $this->createMock('Doctrine\MongoDB\Cursor');
-
         $in = ['v' => ['$in' => ['20140822185742', '20140822185743', '20140822185744']]];
 
         $collection->expects($this->once())
-            ->method('find')
+            ->method('findOne')
             ->with($in)
-            ->willReturn($cursor);
-
-        $cursor->expects($this->once())
-            ->method('sort')
-            ->with(['v' => -1])
-            ->willReturn($cursor);
-
-        $cursor->expects($this->once())
-            ->method('limit')
-            ->with(1)
-            ->willReturn($cursor);
-
-        $cursor->expects($this->once())
-            ->method('getNext')
             ->willReturn(['v' => '20140822185743']);
 
         $version = $this->configuration->getCurrentVersion();
@@ -97,7 +82,7 @@ class ConfigurationTest extends TestCase
     {
         $this->configuration->setMigrationsDatabaseName('test_antimattr_migrations');
 
-        $expectedDatabase = $this->createMock('Doctrine\MongoDB\Database');
+        $expectedDatabase = $this->createMock('MongoDB\Database');
 
         $this->connection->expects($this->once())
             ->method('selectDatabase')
@@ -112,8 +97,8 @@ class ConfigurationTest extends TestCase
     {
         $this->prepareValidConfiguration();
 
-        $collection = $this->createMock('Doctrine\MongoDB\Collection');
-        $database = $this->createMock('Doctrine\MongoDB\Database');
+        $collection = $this->createMock('MongoDB\Collection');
+        $database = $this->createMock('MongoDB\Database');
 
         $this->connection->expects($this->once())
             ->method('selectDatabase')
@@ -147,8 +132,8 @@ class ConfigurationTest extends TestCase
     {
         $this->prepareValidConfiguration();
 
-        $collection = $this->createMock('Doctrine\MongoDB\Collection');
-        $database = $this->createMock('Doctrine\MongoDB\Database');
+        $collection = $this->createMock('MongoDB\Collection');
+        $database = $this->createMock('MongoDB\Database');
 
         $this->connection->expects($this->once())
             ->method('selectDatabase')
@@ -160,13 +145,7 @@ class ConfigurationTest extends TestCase
             ->with('antimattr_migration_versions_test')
             ->willReturn($collection);
 
-        $cursor = $this->createMock('Doctrine\MongoDB\Cursor');
-
         $collection->expects($this->once())
-            ->method('find')
-            ->willReturn($cursor);
-
-        $cursor->expects($this->once())
             ->method('count')
             ->willReturn(2);
 
@@ -205,8 +184,8 @@ class ConfigurationTest extends TestCase
 
         $this->prepareValidConfiguration();
 
-        $collection = $this->createMock('Doctrine\MongoDB\Collection');
-        $database = $this->createMock('Doctrine\MongoDB\Database');
+        $collection = $this->createMock('MongoDB\Collection');
+        $database = $this->createMock('MongoDB\Database');
 
         $this->connection->expects($this->once())
             ->method('selectDatabase')
@@ -278,8 +257,8 @@ class ConfigurationTest extends TestCase
     {
         $this->prepareValidConfiguration();
 
-        $collection = $this->createMock('Doctrine\MongoDB\Collection');
-        $database = $this->createMock('Doctrine\MongoDB\Database');
+        $collection = $this->createMock('MongoDB\Collection');
+        $database = $this->createMock('MongoDB\Database');
 
         $this->connection->expects($this->once())
             ->method('selectDatabase')
@@ -291,15 +270,14 @@ class ConfigurationTest extends TestCase
             ->with('antimattr_migration_versions_test')
             ->willReturn($collection);
 
-        $cursor = $this->createMock('Doctrine\MongoDB\Cursor');
-
         $collection->expects($this->once())
             ->method('find')
-            ->willReturn($cursor);
-
-        $cursor->expects($this->exactly(2))
-            ->method('count')
-            ->willReturn(2);
+            ->willReturn(new class() {
+                public function ToArray()
+                {
+                    return [['v' => 1, 't' => new Timestamp(1, 1)], ['v' => 2, 't' => new Timestamp(2, 2)]];
+                }
+            });
 
         $this->configuration->getMigratedTimestamp('1');
     }
@@ -308,8 +286,8 @@ class ConfigurationTest extends TestCase
     {
         $this->prepareValidConfiguration();
 
-        $collection = $this->createMock('Doctrine\MongoDB\Collection');
-        $database = $this->createMock('Doctrine\MongoDB\Database');
+        $collection = $this->createMock('MongoDB\Collection');
+        $database = $this->createMock('MongoDB\Database');
 
         $this->connection->expects($this->once())
             ->method('selectDatabase')
@@ -321,19 +299,14 @@ class ConfigurationTest extends TestCase
             ->with('antimattr_migration_versions_test')
             ->willReturn($collection);
 
-        $cursor = $this->createMock('Doctrine\MongoDB\Cursor');
-
         $collection->expects($this->once())
             ->method('find')
-            ->willReturn($cursor);
-
-        $cursor->expects($this->exactly(2))
-            ->method('count')
-            ->willReturn(1);
-
-        $cursor->expects($this->once())
-            ->method('getNext')
-            ->willReturn(['t' => new \DateTime()]);
+            ->willReturn(new class() {
+                public function ToArray()
+                {
+                    return [['v' => 1, 't' => new Timestamp(1, 1)]];
+                }
+            });
 
         $this->assertTrue(is_numeric($this->configuration->getMigratedTimestamp('1')));
     }
