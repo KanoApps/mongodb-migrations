@@ -12,9 +12,11 @@ The original authors are @rcatlin and @matthewfitz
 
 It follows the structure and features provided by [Doctrine Migrations](https://github.com/doctrine/migrations).
 
+It has been updated by @kanoblake for this fork to use [PHP's mongodb driver](https://secure.php.net/mongodb) instead of the deprecated [mongo driver](https://secure.php.net/mongo). Dependencies on Doctrine and ext-mongo have been removed.
+
 ## PHP Version Support
 
-If you require php 5.6 support use version `^1.0`. Version `^2.0` requires at least php 7.1. The `1.x` releases will only receive bug fixes.
+Requires at least php 7.1.
 
 ## Symfony Bundle
 
